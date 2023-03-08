@@ -69,7 +69,7 @@ class EEGDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         val_dataset = EEGDataset(self.X_val, self.y_val)
-        val_dataloader = DataLoader(val_dataset, batch_size = self.args.eval_batch_size, shuffle=True) 
+        val_dataloader = DataLoader(val_dataset, batch_size = self.args.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(val_dataset)} train data instances')
         
@@ -77,7 +77,7 @@ class EEGDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         test_dataset = EEGDataset(self.X_test, self.y_test)
-        test_dataloader = DataLoader(test_dataset, batch_size = self.args.eval_batch_size, shuffle=True) 
+        test_dataloader = DataLoader(test_dataset, batch_size = self.args.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(test_dataset)} train data instances')
         

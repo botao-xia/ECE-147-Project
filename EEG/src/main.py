@@ -6,7 +6,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
 
 from data_module import EEGDataModule
-from model import LitShallowCNNModule
+from model import LitModule
 
 def main():
     parser = argparse.ArgumentParser()
@@ -17,13 +17,14 @@ def main():
     #dataloader related
     parser.add_argument('--test_ratio', type=float, default=0.2)
     parser.add_argument('--random_state', type=int, default='42')
-    parser.add_argument('--train_batch_size', type=int, default=64)
+    parser.add_argument('--train_batch_size', type=int, default=16)
     parser.add_argument('--eval_batch_size', type=int, default=64)
     #model runtime related
+    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer'] ,help='model to use')
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
-    parser.add_argument('--train_epochs', type=int, default=10)
+    parser.add_argument('--train_epochs', type=int, default=200)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--gradient_clip_val", default=1.0, type=float, help="Max gradient norm.")
@@ -41,7 +42,7 @@ def main():
     train_dataloader = dataModule.train_dataloader()
 
     #model
-    model = LitShallowCNNModule()
+    model = LitModule(args.model_name)
 
     #trainer
     lr_logger = LearningRateMonitor() 
@@ -56,6 +57,8 @@ def main():
         )
 
     trainer = Trainer(
+        accelerator="gpu", 
+        devices=1,
         logger=wb_logger, 
         min_epochs=args.train_epochs,
         max_epochs=args.train_epochs, 
@@ -65,6 +68,7 @@ def main():
         num_sanity_val_steps=10,
         val_check_interval=1.0, # use float to check every n epochs 
         precision=32,
+        auto_lr_find=True,
         callbacks = [lr_logger, checkpoint_callback]
     ) 
 
@@ -76,6 +80,7 @@ def main():
     elif args.eval_only: 
         trainer.test(model, datamodule=dataModule)
     else:
+        #trainer.tune(model, datamodule=dataModule)
         trainer.fit(model, datamodule=dataModule) 
         trainer.test(model, datamodule=dataModule)
     
