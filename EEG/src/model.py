@@ -72,6 +72,7 @@ class ShallowConvNet(nn.Module):
     # e.g.:
     # model = ShallowConvNet()
     # out = model(x)
+
     def forward(self, x):
         # x has shape (batch_size, input_shape[0], input_shape[1])
         # Let H0 = input_shape[0], H1 = input_shape[1]
@@ -93,6 +94,24 @@ class ShallowConvNet(nn.Module):
         h = self.dense(h) # (batch_size, self.n_dense_features) -> (batch_size, n_classes)
         return h
 
+
+class VanillaRNN(nn.Module):
+    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4):
+        super(VanillaRNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layer = num_layer
+        self.rnn = nn.RNN(input_size, hidden_size, num_layer, batch_first=True)
+        self.fc = nn.Linear(hidden_size, n_classes)
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
+        out, hn = self.rnn(x)  # (batch, seq_len, n_features)
+        out = self.fc(out[:, -1, :])
+        out = self.softmax(out)
+        return out
+
+
 class LitModule(pl.LightningModule):
     def __init__(self, model_name):
         super().__init__()
@@ -100,6 +119,8 @@ class LitModule(pl.LightningModule):
             self.model = ShallowConvNet()
         elif model_name == 'ViTransformer':
             self.model = ViTransformer()
+        elif model_name == 'VanillaRNN':
+            self.model = VanillaRNN()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5

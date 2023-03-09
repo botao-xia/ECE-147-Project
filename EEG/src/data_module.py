@@ -30,21 +30,33 @@ class EEGDataset(Dataset):
         return self.X[index], self.Y[index]
 
 class EEGDataModule(pl.LightningDataModule):
-    def __init__(self, args, data_dir: str = "./"):
+    def __init__(self, args=None, kwargs=None):
         super().__init__()
-        self.args = args 
+        if args is not None:
+            self.test_size = self.args.test_ratio
+            self.random_state = self.args.random_state
+            self.data_dir = self.args.data_dir
+            self.train_batch_size = self.args.train_batch_size
+            self.eval_batch_size = self.args.eval_batch_size
+        else:
+            self.test_size = kwargs["test_size"]
+            self.random_state = kwargs["random_state"]
+            self.data_dir = kwargs["data_dir"]
+            self.train_batch_size = kwargs["train_batch_size"]
+            self.eval_batch_size = kwargs["eval_batch_size"]
+
         
     def prepare_data(self):
         return super().prepare_data()
 
     def setup(self, stage: Optional[str]=''):
         #load datasets
-        data_dir = self.args.data_dir
+        data_dir = self.data_dir
         X_train_valid = np.load(data_dir + "X_train_valid.npy")
         y_train_valid = np.load(data_dir + "y_train_valid.npy")
         # Convert to 0-4 labeling and integer type
         y_train_valid = (y_train_valid - np.min(y_train_valid)).astype('int')
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.args.test_ratio, random_state=self.args.random_state)
+        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.test_size, random_state=self.random_state)
         self.X_test = np.load(data_dir + "X_test.npy")
         self.y_test = np.load(data_dir + "y_test.npy")
         # Convert to 0-4 labeling and integer type
@@ -61,7 +73,7 @@ class EEGDataModule(pl.LightningDataModule):
         #     pass
 
         train_dataset = EEGDataset(self.X_train, self.y_train)
-        train_dataloader = DataLoader(train_dataset, batch_size = self.args.train_batch_size, shuffle=True) 
+        train_dataloader = DataLoader(train_dataset, batch_size = self.train_batch_size, shuffle=True) 
         
         logger.info(f'loaded {len(train_dataset)} train data instances')
 
@@ -69,7 +81,7 @@ class EEGDataModule(pl.LightningDataModule):
 
     def val_dataloader(self):
         val_dataset = EEGDataset(self.X_val, self.y_val)
-        val_dataloader = DataLoader(val_dataset, batch_size = self.args.eval_batch_size, shuffle=False) 
+        val_dataloader = DataLoader(val_dataset, batch_size = self.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(val_dataset)} train data instances')
         
@@ -77,7 +89,7 @@ class EEGDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         test_dataset = EEGDataset(self.X_test, self.y_test)
-        test_dataloader = DataLoader(test_dataset, batch_size = self.args.eval_batch_size, shuffle=False) 
+        test_dataloader = DataLoader(test_dataset, batch_size = self.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(test_dataset)} train data instances')
         
