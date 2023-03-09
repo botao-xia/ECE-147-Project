@@ -96,11 +96,11 @@ class ShallowConvNet(nn.Module):
 
 
 class VanillaRNN(nn.Module):
-    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4):
+    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4, **kwargs):
         super(VanillaRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layer = num_layer
-        self.rnn = nn.RNN(input_size, hidden_size, num_layer, batch_first=True)
+        self.rnn = nn.RNN(input_size, hidden_size, num_layer, batch_first=True, **kwargs)
         self.fc = nn.Linear(hidden_size, n_classes)
         self.softmax = nn.LogSoftmax(dim=1)
 
