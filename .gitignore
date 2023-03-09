@@ -4,3 +4,6 @@
 /*/wandb
 /*/__pycache__
 /*/*/__pycache__
+Data/
+*.ipynb
+**/.ipynb_checkpoints
