@@ -47,6 +47,7 @@ class ViTransformer(nn.Module):
         h = self.MLP_head(h)
         return h
 
+
 class ShallowConvNet(nn.Module):
     def __init__(self, input_shape=(22, 1000), n_temporal_filters=40, n_spatial_filters=40, n_classes=4):
         super().__init__() # call __init__ method of superclass
@@ -95,9 +96,79 @@ class ShallowConvNet(nn.Module):
         return h
 
 
-class VanillaRNN(nn.Module):
+class DeepConvNet(nn.Module):
+    def __init__(self, input_shape=(22, 1000), n_temporal_filters=40, n_spatial_filters=40, n_classes=4):
+        super().__init__() # call __init__ method of superclass
+        self.input_shape = input_shape # last two dimensions, (excluding batch size). Should be length 2.
+        self.n_temporal_filters = n_temporal_filters
+        self.n_spatial_filters = n_spatial_filters
+        self.n_classes = n_classes
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html#torch.nn.Conv2d
+        # torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None)
+        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 10))
+        # We could implement the spatial convolution as a 1d, or 2d, or 3d convolution.
+        # We use 2d here.
+        self.spatial_convolution = nn.Conv2d(n_temporal_filters, n_spatial_filters, (input_shape[0], 1))
+        self.max_pool = nn.MaxPool2d(kernel_size=(1, 3), stride=(1, 3))
+
+        self.conv1 = nn.Conv1d(in_channels=n_temporal_filters, out_channels=50, kernel_size=20)
+        self.conv2 = nn.Conv1d(in_channels=50, out_channels=100, kernel_size=10)
+        self.conv3 = nn.Conv1d(in_channels=100, out_channels=200, kernel_size=10)
+
+
+        # Final linear layer
+        # self.n_dense_features = n_spatial_filters*(1 + ((input_shape[1] - 25 + 1) - 75) // 15)
+        self.dense = nn.LazyLinear(n_classes)
+        # you can also use 'self.dense = nn.LazyLinear(n_classes)' to avoid having to manually compute features
+        self.elu = nn.ELU()
+        return
+    # declaring a forward method also makes the instance a callable.
+    # e.g.:
+    # model = ShallowConvNet()
+    # out = model(x)
+
+    def forward(self, x):
+        # x has shape (batch_size, input_shape[0], input_shape[1])
+        # Let H0 = input_shape[0], H1 = input_shape[1]
+        h = x
+        # note that h.view(-1, 1, h.shape[1], h.shape[2]) works normally but does not work with torchinfo
+        # this is because the torchinfo input has a weird shape
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) # view as (batch_size, 1, input_shape[0], input_shape[1])
+        # Sometimes, view doesn't work and you have to use reshape. This is because of how tensors are stored in memory.
+        # 2d convolution takes inputs of shape (batch_size, num_channels, H, W)
+        h = self.temporal_convolution(h) # (batch_size, 1, H0, W0) -> (batch_size, n_temporal_filters, H0, W0 - 25 + 1)
+        h = self.elu(h)
+        h = self.spatial_convolution(h) # (batch_size, n_temporal_filters, H0, W0 - 25 + 1) -> (batch_size, n_spatial_filters, 1, W0 - 25 + 1)
+        h = self.elu(h)
+        # print(h.shape)
+
+        h = torch.squeeze(h, 2)
+
+        # print(h.shape)
+        h = self.max_pool(h)
+        # print(h.shape)
+
+        h = self.conv1(h)
+        h = self.elu(h)
+        h = self.max_pool(h)
+
+        h = self.conv2(h)
+        h = self.elu(h)
+        h = self.max_pool(h)
+
+        h = self.conv3(h)
+        h = self.elu(h)
+        h = self.max_pool(h)
+
+        h = h.view(h.shape[0], -1) # flatten the non-batch dimensions
+        h = self.dense(h) # (batch_size, self.n_dense_features) -> (batch_size, n_classes)
+        return h
+
+
+
+class RNN(nn.Module):
     def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4, **kwargs):
-        super(VanillaRNN, self).__init__()
+        super(RNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layer = num_layer
         self.rnn = nn.RNN(input_size, hidden_size, num_layer, batch_first=True, **kwargs)
@@ -107,7 +178,24 @@ class VanillaRNN(nn.Module):
     def forward(self, x):
         x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
         out, hn = self.rnn(x)  # (batch, seq_len, n_features)
-        out = self.fc(out[:, -1, :])
+        out = self.fc(out[:, -1, :]) # obtain the last output of the model
+        out = self.softmax(out)
+        return out
+
+
+class LSTM(nn.Module):
+    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4, **kwargs):
+        super(LSTM, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layer = num_layer
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layer, batch_first=True, **kwargs)
+        self.fc = nn.Linear(hidden_size, n_classes)
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
+        out, hn = self.rnn(x)  # (batch, seq_len, n_features)
+        out = self.fc(out[:, -1, :]) # obtain the last output of the model
         out = self.softmax(out)
         return out
 
@@ -119,8 +207,8 @@ class LitModule(pl.LightningModule):
             self.model = ShallowConvNet()
         elif model_name == 'ViTransformer':
             self.model = ViTransformer()
-        elif model_name == 'VanillaRNN':
-            self.model = VanillaRNN()
+        elif model_name == 'RNN':
+            self.model = RNN()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5

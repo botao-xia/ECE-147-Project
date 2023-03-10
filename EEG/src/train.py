@@ -2,7 +2,7 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn # pytorch's neural networks module
 
-def train_loop(model, train_dataloader, val_dataloader, device=None, optimizer=torch.optim.Adam, criterion=nn.NLLLoss()):
+def train_loop(model, train_dataloader, val_dataloader, device=None, optimizer=torch.optim.Adam, criterion=nn.CrossEntropyLoss()):
     optimizer = optimizer(model.parameters())
     num_epochs = 30
     loss_hist, acc_hist, val_loss_hist, val_acc_hist = [], [], [], []
