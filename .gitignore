@@ -1,6 +1,8 @@
-/*/EEG_Dataset
+/*/EEG_data
 /*/aux
 /*/outputs
 /*/wandb
+/wandb
+/.vscode
 /*/__pycache__
 /*/*/__pycache__
