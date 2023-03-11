@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--train_batch_size', type=int, default=16)
     parser.add_argument('--eval_batch_size', type=int, default=64)
     #model runtime related
-    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer'] ,help='model to use')
+    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'ATCNet'] ,help='model to use')
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
