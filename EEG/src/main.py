@@ -34,7 +34,7 @@ def main():
     seed_everything(args.random_state)
 
     #wandb logger; change to your own account to use it
-    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='ajshawn723')
+    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='hercyshen')
 
     #data loaders
     dataModule = EEGDataModule(args)
@@ -57,12 +57,12 @@ def main():
         )
 
     trainer = Trainer(
-        accelerator="gpu", 
-        devices=1,
+        #accelerator="gpu", 
+        #devices=1,
         logger=wb_logger, 
         min_epochs=args.train_epochs,
         max_epochs=args.train_epochs, 
-        gpus=str(args.gpus), # use string or list to specify gpu id  
+       # gpus=str(args.gpus), # use string or list to specify gpu id  
         accumulate_grad_batches=args.accumulate_grad_batches,
         gradient_clip_val=args.gradient_clip_val, 
         num_sanity_val_steps=10,
