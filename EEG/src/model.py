@@ -10,6 +10,7 @@ from einops.layers.torch import Rearrange, Reduce
 from torchmetrics.functional import accuracy
 
 from utils import PositionalEncoding
+from ATCNet import ATCNet
 
 class ViTransformer(nn.Module):
     def __init__(self, input_shape=(22, 1000), nhead=8, num_encoder_layers=2, patch_width=1, patch_height=22, n_classes=4):
@@ -238,8 +239,14 @@ class LitModule(pl.LightningModule):
             self.model = ShallowConvNet()
         elif model_name == 'ViTransformer':
             self.model = ViTransformer()
+        elif model_name == 'ATCNet':
+            self.model = ATCNet()
+        elif model_name == 'LSTM':
+            self.model = LSTM()
         elif model_name == 'RNN':
             self.model = RNN()
+        elif model_name == 'ConvLSTM':
+            self.model = ConvLSTM()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5
@@ -284,5 +291,5 @@ class LitModule(pl.LightningModule):
     def _get_preds_loss_accuracy(self, logits, labels):
         preds = torch.argmax(logits, dim=1)
         loss = F.cross_entropy(logits, labels)
-        acc = accuracy(preds, labels)
+        acc = accuracy(preds, labels, task='multiclass', num_classes=4)
         return preds, loss, acc
