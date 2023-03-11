@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl 
 from einops import rearrange, reduce, repeat
 from einops.layers.torch import Rearrange, Reduce
-from torchmetrics.functional import accuracy
+from torchmetrics.classification import MulticlassAccuracy
 
 from utils import PositionalEncoding
 
@@ -93,11 +93,88 @@ class ShallowConvNet(nn.Module):
         h = self.dense(h) # (batch_size, self.n_dense_features) -> (batch_size, n_classes)
         return h
 
+
+class EEGNet(nn.Module):
+    def __init__(self, input_shape=(22, 1000), n_temporal_filters=4, n_spatial_filters=16, n_separable_filters=16, n_classes=4):
+        super().__init__() # call __init__ method of superclass
+        self.input_shape = input_shape # last two dimensions, (excluding batch size). Should be length 2.
+        self.channel, self.time_points = input_shape
+        self.n_temporal_filters = n_temporal_filters
+        self.n_spatial_filters = n_spatial_filters
+        self.n_separable_filters = n_separable_filters
+        self.n_classes = n_classes
+        # https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html#torch.nn.Conv2d
+        # torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None)
+        
+        self.elu = nn.ELU()
+        self.dropout = nn.Dropout(p=0.3)
+        
+        # temporal layer
+        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 64), padding='same')
+        self.temporal_layernorm = nn.LayerNorm([n_temporal_filters, self.channel, self.time_points])
+    
+        # spatial layer
+        self.spatial_convolution = nn.Conv2d(n_temporal_filters, n_spatial_filters, (self.channel, 1))
+        self.spatial_layernorm = nn.LayerNorm([n_spatial_filters, 1, self.time_points])
+        self.temporal_average_pool_1 = nn.AvgPool2d(1, 4)
+
+        
+        # separable layer
+        self.separable_convolution = nn.Conv2d(n_spatial_filters, n_separable_filters, (1, 16), padding='same')
+        self.separable_layernorm = nn.LayerNorm([n_separable_filters, 1, self.time_points//4])
+        self.temporal_average_pool_2 = nn.AvgPool2d((1, 8))
+        
+        # FC Layer
+        self.dense = nn.Linear(n_separable_filters*(self.time_points//32), n_classes)
+
+        return
+    # declaring a forward method also makes the instance a callable.
+    # e.g.:
+    # model = EEGNet()
+    # out = model(x)
+    def forward(self, x):
+        # x has shape (batch_size, channel, time_points)
+        # Let H0 = channel, H1 = time_points
+        h = x
+        # this is because the torchinfo input has a weird shape
+        h = h.view(-1, 1, self.channel, self.time_points) # view as (batch_size, 1, channel, time_points)
+        # temporal conv 
+        h = self.temporal_convolution(h) # (batch_size, 1, channel, time_points) -> (batch_size, n_temporal_filters, channel, time_points)
+        # temporal layer norm
+        h = self.temporal_layernorm(h) # (batch_size, n_temporal_filters, channel, time_points) -> (batch_size, n_temporal_filters, channel, time_points)
+        # spacial conv
+        h = self.spatial_convolution(h) # (batch_size, n_temporal_filters, channel, time_points) -> (batch_size, n_spacial_filters, 1, time_points)
+        # spacial layer norm
+        h = self.spatial_layernorm(h) # (batch_size, n_spacial_filters, 1, time_points) -> (batch_size, n_spacial_filters, 1, time_points)
+        # ELU activation
+        h = self.elu(h) # (batch_size, n_spacial_filters, 1, time_points) -> (batch_size, n_spacial_filters, 1, time_points)
+        # temporal average pool 1
+        h = self.temporal_average_pool_1(h) # (batch_size, n_spacial_filters, 1, time_points) -> (batch_size, n_spacial_filters, 1, time_points//4)
+        # dropout
+        h = self.dropout(h) # (batch_size, n_spacial_filters, 1, time_points//4) -> (batch_size, n_spacial_filters, 1, time_points//4)
+        # separable conv
+        h = self.separable_convolution(h) # (batch_size, n_spacial_filters, 1, time_points//4) -> (batch_size, n_separable_filteres, 1, time_points//4)
+        # separable layer norm
+        h = self.separable_layernorm(h) # (batch_size, n_separable_filteres, 1, time_points//4) -> (batch_size, n_separable_filteres, 1, time_points//4)
+        # ELU activation
+        h = self.elu(h) # (batch_size, n_separable_filteres, 1, time_points//4) -> (batch_size, n_separable_filteres, 1, time_points//4)
+        # temporal average pool 2
+        h = self.temporal_average_pool_2(h) # (batch_size, n_separable_filteres, 1, time_points//4) -> (batch_size, n_separable_filteres, 1, time_points//32)
+        # dropout
+        h = self.dropout(h) # (batch_size, n_separable_filteres, 1, time_points//32) -> (batch_size, n_separable_filteres, 1, time_points//32)
+        # flatten
+        h = h.view(h.shape[0], -1) # (batch_size, n_separable_filteres, 1, time_points//32) -> (batch_size, n_separable_filteres * time_points//32)
+        # dense layer output
+        h = self.dense(h) # (batch_size, n_separable_filteres * time_points//32) -> (batch_size, n_classes)
+        return h
+    
 class LitModule(pl.LightningModule):
     def __init__(self, model_name):
         super().__init__()
         if model_name == 'ShallowConvNet':
             self.model = ShallowConvNet()
+        elif model_name == 'EEGNet':
+            self.model = EEGNet()
         elif model_name == 'ViTransformer':
             self.model = ViTransformer()
         else:
@@ -144,5 +221,6 @@ class LitModule(pl.LightningModule):
     def _get_preds_loss_accuracy(self, logits, labels):
         preds = torch.argmax(logits, dim=1)
         loss = F.cross_entropy(logits, labels)
+        accuracy = MulticlassAccuracy(num_classes=4, average='macro')
         acc = accuracy(preds, labels)
         return preds, loss, acc

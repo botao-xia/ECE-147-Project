@@ -20,8 +20,8 @@ def main():
     parser.add_argument('--train_batch_size', type=int, default=16)
     parser.add_argument('--eval_batch_size', type=int, default=64)
     #model runtime related
-    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer'] ,help='model to use')
-    parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
+    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'EEGNet'] ,help='model to use')
+    parser.add_argument("--gpus", default=0, help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
     parser.add_argument('--train_epochs', type=int, default=200)
@@ -34,7 +34,7 @@ def main():
     seed_everything(args.random_state)
 
     #wandb logger; change to your own account to use it
-    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='ajshawn723')
+    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='botao')
 
     #data loaders
     dataModule = EEGDataModule(args)
@@ -57,7 +57,7 @@ def main():
         )
 
     trainer = Trainer(
-        accelerator="gpu", 
+        accelerator="cpu", 
         devices=1,
         logger=wb_logger, 
         min_epochs=args.train_epochs,
