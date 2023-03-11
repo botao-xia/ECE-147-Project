@@ -46,9 +46,37 @@ class ATCNet(nn.Module):
 
 class Convolution_module(nn.Module):
     def __init__(
+        self, n_temporal_filters=8, 
+        kernel_length=64, pool_size=8, 
+        depth_multiplier=4, in_channels=22, dropout=0.35):
+
+        '''
+        Default hyperparameters s1:
         self, n_temporal_filters=4, 
         kernel_length=64, pool_size=8, 
-        depth_multiplier=2, in_channels=22, dropout=0.1):
+        depth_multiplier=2, in_channels=22, dropout=0.1
+        '''
+
+        '''
+        hyperparameters s2:
+        self, n_temporal_filters=8, 
+        kernel_length=64, pool_size=8, 
+        depth_multiplier=4, in_channels=22, dropout=0.3
+        '''
+
+        '''
+        hyperparameters s3:
+        self, n_temporal_filters=12, 
+        kernel_length=64, pool_size=8, 
+        depth_multiplier=6, in_channels=22, dropout=0.4
+        '''
+
+        '''
+        hyperparameters s4:
+        self, n_temporal_filters=16, 
+        kernel_length=64, pool_size=8, 
+        depth_multiplier=8, in_channels=22, dropout=0.4
+        '''
 
         super().__init__()
 
