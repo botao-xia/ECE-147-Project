@@ -122,10 +122,6 @@ class DeepConvNet(nn.Module):
         # you can also use 'self.dense = nn.LazyLinear(n_classes)' to avoid having to manually compute features
         self.elu = nn.ELU()
         return
-    # declaring a forward method also makes the instance a callable.
-    # e.g.:
-    # model = ShallowConvNet()
-    # out = model(x)
 
     def forward(self, x):
         # x has shape (batch_size, input_shape[0], input_shape[1])
@@ -140,13 +136,9 @@ class DeepConvNet(nn.Module):
         h = self.elu(h)
         h = self.spatial_convolution(h) # (batch_size, n_temporal_filters, H0, W0 - 25 + 1) -> (batch_size, n_spatial_filters, 1, W0 - 25 + 1)
         h = self.elu(h)
-        # print(h.shape)
 
         h = torch.squeeze(h, 2)
-
-        # print(h.shape)
         h = self.max_pool(h)
-        # print(h.shape)
 
         h = self.conv1(h)
         h = self.elu(h)
@@ -165,39 +157,78 @@ class DeepConvNet(nn.Module):
         return h
 
 
-
 class RNN(nn.Module):
-    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4, **kwargs):
+    def __init__(self, input_shape=(22, 1000), hidden_size=64, num_layer=2, n_classes=4, **kwargs):
         super(RNN, self).__init__()
+        input_size, _ = input_shape
         self.hidden_size = hidden_size
         self.num_layer = num_layer
         self.rnn = nn.RNN(input_size, hidden_size, num_layer, batch_first=True, **kwargs)
         self.fc = nn.Linear(hidden_size, n_classes)
-        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
         out, hn = self.rnn(x)  # (batch, seq_len, n_features)
         out = self.fc(out[:, -1, :]) # obtain the last output of the model
-        out = self.softmax(out)
         return out
 
 
 class LSTM(nn.Module):
-    def __init__(self, input_size=22, hidden_size=128, num_layer=3, n_classes=4, **kwargs):
+    def __init__(self, input_shape=(22, 1000), hidden_size=64, num_layer=2, n_classes=4, **kwargs):
         super(LSTM, self).__init__()
+        input_size, _ = input_shape
         self.hidden_size = hidden_size
         self.num_layer = num_layer
-        self.rnn = nn.LSTM(input_size, hidden_size, num_layer, batch_first=True, **kwargs)
-        self.fc = nn.Linear(hidden_size, n_classes)
-        self.softmax = nn.LogSoftmax(dim=1)
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layer, batch_first=True, bidirectional=True, **kwargs)
+        self.fc = nn.Linear(hidden_size*2, n_classes)
 
     def forward(self, x):
         x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
         out, hn = self.rnn(x)  # (batch, seq_len, n_features)
         out = self.fc(out[:, -1, :]) # obtain the last output of the model
-        out = self.softmax(out)
         return out
+
+
+class ConvLSTM(nn.Module):
+    def __init__(self, input_shape=(22, 1000), n_temporal_filters=15, n_spatial_filters=15, pool_stride=10, 
+                    n_classes=4, hidden_size=16):
+        super(ConvLSTM, self).__init__()
+        self.input_shape = input_shape
+        self.n_temporal_filters = n_temporal_filters
+        self.n_spatial_filters = n_spatial_filters
+        self.n_classes = n_classes
+
+        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 25))
+        self.spatial_convolution = nn.Conv2d(n_temporal_filters, n_spatial_filters, (input_shape[0], 1))
+        self.average_pool = nn.AvgPool2d((1, 50), stride=(1, pool_stride))
+
+        self.rnn = nn.LSTM(n_spatial_filters, hidden_size=hidden_size, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size*2, n_classes)
+
+        self.elu = nn.ELU()
+
+    def forward(self, x):
+        h = x
+        # note that h.view(-1, 1, h.shape[1], h.shape[2]) works normally but does not work with torchinfo
+        # this is because the torchinfo input has a weird shape
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) # view as (batch_size, 1, input_shape[0], input_shape[1])
+        # Sometimes, view doesn't work and you have to use reshape. This is because of how tensors are stored in memory.
+        # 2d convolution takes inputs of shape (batch_size, num_channels, H, W)
+        h = self.temporal_convolution(h) # (batch_size, 1, H0, W0) -> (batch_size, n_temporal_filters, H0, W0 - 25 + 1)
+        h = self.elu(h)
+        h = self.spatial_convolution(h) # (batch_size, n_temporal_filters, H0, W0 - 25 + 1) -> (batch_size, n_spatial_filters, 1, W0 - 25 + 1)
+        h = self.elu(h)
+        h = h**2 # square
+        # alternatively, use torch.pow(h, 2.0)
+        h = self.average_pool(h) 
+        h = torch.log(h) # (natural) log
+        h = torch.squeeze(h, 2)
+        h = h.permute(0, 2, 1)
+
+        h, _ = self.rnn(h)  # (batch, seq_len, n_features)
+        h = self.fc(h[:, -1, :]) # obtain the last output of the model
+    
+        return h
 
 
 class LitModule(pl.LightningModule):
