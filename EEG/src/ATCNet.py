@@ -119,15 +119,74 @@ class Convolution_module(nn.Module):
 
         return h
 
-# class TCN(nn.Module):
-#      def __init__(
-#          self, 
-#          input_dimension,
-#          depth=2,
-#          kernel_size=4,
-#          filters=32,
-#          dropout=0.3,
-#          activation='elu'):
+
+class TCN(nn.Module):   
+     def __init__(
+        self, nput_dimension, depth=2, 
+        kernel_size=4, filters=32, 
+        dropout=0.3, activation='elu'):
+
+        super().__init__()
+
+        dilation = 1
+        padding = kernel_size - 1 # casual padding
+        self.depth = depth
+        self.conv1 = nn.Conv1d(input_dimension, filters, kernel_size, padding, dilation)
+        torch.nn.init.kaiming_uniform(self.conv1.weight)
+        self.casual_conv1 = lambda x: x[:, :, :-padding].contiguous()
+        self.batch_norm_1 = nn.BatchNorm1d(filters)
+        if activation == 'elu':  
+            self.elu = nn.ELU()
+        self.dropout1 = nn.Dropout(p=dropout)
+        self.conv2 = nn.Conv1d(filters, filters, kernel_size, padding, dilation)
+        torch.nn.init.kaiming_uniform(self.conv2.weight)
+        self.casual_conv2 = self.casual_conv1 = lambda x: x[:, :, :-padding].contiguous()
+        self.batch_norm_2 = nn.BatchNorm1d(filters)
+        self.dropout2 = nn.Dropout(p=dropout)
+
+        if input_dimension != filters:
+            self.convInput = nn.Conv1D(input_dimension, filters, kernel_size=1, padding='same')
+            torch.nn.init.kaiming_uniform(self.convInput.weight)
+        else:
+            self.convInput = None
+    
+    def forward(self, x):
+        
+        h = self.conv1(x)
+        h = self.casual_conv1(h)
+        h = self.batch_norm_1(h)
+        h = self.elu(h)
+        h = self.dropout1(h)
+        h = self.conv2(x)
+        h = self.casual_conv2(h)
+        h = self.batch_norm_2(h)
+        h = self.elu(h)
+        h = self.dropout2(h)
+        if self.convInput is None:
+            h = h + x
+        else:
+            h = h + self.convInput(x)
+        out = self.elu(h)
+
+        for i in range(self.depth-1):
+            h = self.conv2(out)
+            h = self.casual_conv1(h)
+            h = self.batch_norm_1(h)
+            h = self.elu1(h)
+            h = self.dropout1(h)
+            h = self.conv2(x)
+            h = self.casual_conv2(h)
+            h = self.batch_norm_2(h)
+            h = self.elu2(h)
+            h = self.dropout2(h)
+            h = h + out
+            out = self.elu(h)
+
+        return out
+
+
+
+
 
 
 
