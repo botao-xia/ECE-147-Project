@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
-    parser.add_argument('--train_epochs', type=int, default=200)
+    parser.add_argument('--train_epochs', type=int, default=500)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--gradient_clip_val", default=1.0, type=float, help="Max gradient norm.")
