@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
-    parser.add_argument('--train_epochs', type=int, default=200)
+    parser.add_argument('--train_epochs', type=int, default=500)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--gradient_clip_val", default=1.0, type=float, help="Max gradient norm.")
@@ -34,7 +34,7 @@ def main():
     seed_everything(args.random_state)
 
     #wandb logger; change to your own account to use it
-    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='hercyshen')
+    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='ajshawn723')
 
     #data loaders
     dataModule = EEGDataModule(args)
@@ -57,12 +57,12 @@ def main():
         )
 
     trainer = Trainer(
-        #accelerator="gpu", 
-        #devices=1,
+        accelerator="gpu", 
+        devices=1,
         logger=wb_logger, 
         min_epochs=args.train_epochs,
         max_epochs=args.train_epochs, 
-       # gpus=str(args.gpus), # use string or list to specify gpu id  
+        gpus=str(args.gpus), # use string or list to specify gpu id  
         accumulate_grad_batches=args.accumulate_grad_batches,
         gradient_clip_val=args.gradient_clip_val, 
         num_sanity_val_steps=10,
