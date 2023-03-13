@@ -10,4 +10,4 @@ UCLA ECE-147-Project
 | DeepConvNet    | raw                     | 87    | 0.96      | 0.68      | 27K         |
 | ShallowConvNet | raw                     | 30    | 0.83      | 0.57      | 46K         |
 | ConvLSTM       | max, avg, subsampling   | 30    | 0.9       | 0.66      | 27K         |
-| ATCNet         | raw                     | 30    | 0.83      | 0.57      | 123K        |
+| ATCNet         | raw                     | 30    | 0.83      | 0.67      | 123K        |
