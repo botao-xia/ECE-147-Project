@@ -48,19 +48,24 @@ class EEGDataModule(pl.LightningDataModule):
     def prepare_data(self):
         return super().prepare_data()
 
-    def setup(self, transform=None):
+    def setup(self, transform=None, **kwargs):
         #load datasets
         data_dir = self.data_dir
         X_train_valid = np.load(data_dir + "X_train_valid.npy")
         y_train_valid = np.load(data_dir + "y_train_valid.npy")
 
-        # apply transformation to the loaded dataset
-        if transform is not None:
-            X_train_valid = transform(X_train_valid)
-
         # Convert to 0-4 labeling and integer type
         y_train_valid = (y_train_valid - np.min(y_train_valid)).astype('int')
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.test_size, random_state=self.random_state)
+        X_train, X_val, y_train, y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.test_size, random_state=self.random_state)
+
+        # apply transformation to the loaded dataset
+        if transform is not None:
+            self.X_train, self.y_train = transform(X_train, y_train, **kwargs)
+            self.X_val, self.y_val = transform(X_val, y_val, **kwargs)
+        else:
+            self.X_train, self.y_train = X_train, y_train
+            self.X_val, self.y_val = X_val, y_val
+
         self.X_test = np.load(data_dir + "X_test.npy")
         self.y_test = np.load(data_dir + "y_test.npy")
         # Convert to 0-4 labeling and integer type
