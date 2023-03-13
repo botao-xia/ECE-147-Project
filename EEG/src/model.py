@@ -98,27 +98,27 @@ class ShallowConvNet(nn.Module):
 
 
 class DeepConvNet(nn.Module):
-    def __init__(self, input_shape=(22, 1000), n_temporal_filters=40, n_spatial_filters=40, n_classes=4):
+    def __init__(self, input_shape=(22, 1000), n_temporal_filters=20, n_spatial_filters=20, n_classes=4):
         super().__init__() # call __init__ method of superclass
         self.input_shape = input_shape # last two dimensions, (excluding batch size). Should be length 2.
         self.n_temporal_filters = n_temporal_filters
         self.n_spatial_filters = n_spatial_filters
         self.n_classes = n_classes
-        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 10))
-        # We could implement the spatial convolution as a 1d, or 2d, or 3d convolution.
-        # We use 2d here.
+
+        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 25))
         self.spatial_convolution = nn.Conv2d(n_temporal_filters, n_spatial_filters, (input_shape[0], 1))
+
         self.maxpool = nn.MaxPool1d(kernel_size=3)
 
-        self.conv1 = nn.Conv1d(in_channels=n_temporal_filters, out_channels=50, kernel_size=20)
-        self.conv2 = nn.Conv1d(in_channels=50, out_channels=100, kernel_size=10)
-        self.conv3 = nn.Conv1d(in_channels=100, out_channels=200, kernel_size=10)
+        self.conv1 = nn.Conv1d(in_channels=n_temporal_filters, out_channels=25, kernel_size=10)
+        self.conv2 = nn.Conv1d(in_channels=25, out_channels=50, kernel_size=10)
 
+        self.bn1 = nn.BatchNorm1d(num_features=25)
+        self.bn2 = nn.BatchNorm1d(num_features=50)
+        self.bn3 = nn.BatchNorm1d(num_features=n_spatial_filters)
+        self.dropout = nn.Dropout(p=0.5)
 
-        # Final linear layer
-        # self.n_dense_features = n_spatial_filters*(1 + ((input_shape[1] - 25 + 1) - 75) // 15)
         self.dense = nn.LazyLinear(n_classes)
-        # you can also use 'self.dense = nn.LazyLinear(n_classes)' to avoid having to manually compute features
         self.elu = nn.ELU()
         return
 
@@ -126,33 +126,31 @@ class DeepConvNet(nn.Module):
         # x has shape (batch_size, input_shape[0], input_shape[1])
         # Let H0 = input_shape[0], H1 = input_shape[1]
         h = x
-        # note that h.view(-1, 1, h.shape[1], h.shape[2]) works normally but does not work with torchinfo
-        # this is because the torchinfo input has a weird shape
-        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) # view as (batch_size, 1, input_shape[0], input_shape[1])
-        # Sometimes, view doesn't work and you have to use reshape. This is because of how tensors are stored in memory.
-        # 2d convolution takes inputs of shape (batch_size, num_channels, H, W)
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) # view as 
         h = self.temporal_convolution(h) # (batch_size, 1, H0, W0) -> (batch_size, n_temporal_filters, H0, W0 - 25 + 1)
         h = self.elu(h)
-        h = self.spatial_convolution(h) # (batch_size, n_temporal_filters, H0, W0 - 25 + 1) -> (batch_size, n_spatial_filters, 1, W0 - 25 + 1)
-        h = self.elu(h)
-
+        h = self.spatial_convolution(h)
         h = torch.squeeze(h, 2)
-        h = self.max_pool(h)
+
+        h = self.elu(h)
+        h = self.maxpool(h)
+        h = self.bn3(h)
+        h = self.dropout(h)
 
         h = self.conv1(h)
         h = self.elu(h)
-        h = self.max_pool(h)
+        h = self.maxpool(h)
+        h = self.bn1(h)
+        h = self.dropout(h)
 
         h = self.conv2(h)
         h = self.elu(h)
-        h = self.max_pool(h)
-
-        h = self.conv3(h)
-        h = self.elu(h)
-        h = self.max_pool(h)
+        h = self.maxpool(h)
+        h = self.bn2(h)
+        h = self.dropout(h)
 
         h = h.view(h.shape[0], -1) # flatten the non-batch dimensions
-        h = self.dense(h) # (batch_size, self.n_dense_features) -> (batch_size, n_classes)
+        h = self.dense(h)
         return h
 
 

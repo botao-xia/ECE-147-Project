@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn # pytorch's neural networks module
 
 def train_loop(model, train_dataloader, val_dataloader, device=None, optimizer=torch.optim.Adam, criterion=nn.CrossEntropyLoss(), **kwargs):
-    optimizer = optimizer(model.parameters())
+    optimizer = optimizer(model.parameters(), **kwargs)
     num_epochs = 100
     loss_hist, acc_hist, val_loss_hist, val_acc_hist = [], [], [], []
     if device is not None:
