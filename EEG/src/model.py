@@ -10,6 +10,7 @@ from einops.layers.torch import Rearrange, Reduce
 from torchmetrics.classification import MulticlassAccuracy
 
 from utils import PositionalEncoding
+from ATCNet import ATCNet
 
 class ViTransformer(nn.Module):
     def __init__(self, input_shape=(22, 1000), nhead=8, num_encoder_layers=2, patch_width=1, patch_height=22, n_classes=4):
@@ -177,6 +178,8 @@ class LitModule(pl.LightningModule):
             self.model = EEGNet()
         elif model_name == 'ViTransformer':
             self.model = ViTransformer()
+        elif model_name == 'ATCNet':
+            self.model = ATCNet()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5
