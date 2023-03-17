@@ -11,8 +11,8 @@ UCLA ECE-147-Project
 | ShallowConvNet | raw                     | 30    | 0.83      | 0.57      | 46K         |
 | ConvLSTM       | max, avg, subsampling   | 30    | 0.9       | 0.66      | 27K         |
 | ATCNet         | raw                     | 30    | 0.83      | 0.67      | 123K        |
-| ViT            | raw                     | 30    | 0.26      | 0.25      |             |
-| EEGNet_Modified| raw                     | 200   | 0.95      | 0.72      | 17.7 K      |
+| ViT            | raw                     | 30    | 0.26      | 0.25      | 628K        |
+| EEGNet_Modified| raw                     | 200   | 0.95      | 0.72      | 17.7K       |
 
 
 
