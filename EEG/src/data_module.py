@@ -64,10 +64,11 @@ class EEGDataModule(pl.LightningDataModule):
         if self.args.train_person_index != []:
             filter = np.vectorize(lambda x : x in self.args.train_person_index)(self.person_train.flatten())
             train_dataset = EEGDataset(self.X_train[filter], self.y_train[filter])
+        elif self.args.timestep_end != -1:
+            train_dataset = EEGDataset(self.X_train[:, :, self.args.timestep_start:self.args.timestep_end], self.y_train)
         else:
             train_dataset = EEGDataset(self.X_train, self.y_train)
-        if self.args.timestep_end != -1:
-            train_dataset = EEGDataset(self.X_train[:, :, self.args.timestep_start:self.args.timestep_end], self.y_train)
+        
         train_dataloader = DataLoader(train_dataset, batch_size = self.args.train_batch_size, shuffle=True) 
         logger.info(f'loaded {len(train_dataset)} train data instances')
 
@@ -77,10 +78,10 @@ class EEGDataModule(pl.LightningDataModule):
         if self.args.train_person_index != []:
             filter = np.vectorize(lambda x : x in self.args.train_person_index)(self.person_valid.flatten())
             val_dataset = EEGDataset(self.X_val[filter], self.y_val[filter])
+        elif self.args.timestep_end != -1:
+            val_dataset = EEGDataset(self.X_val[:, :, self.args.timestep_start:self.args.timestep_end], self.y_val)
         else:
             val_dataset = EEGDataset(self.X_val, self.y_val)
-        if self.args.timestep_end != -1:
-            val_dataset = EEGDataset(self.X_val[:, :, self.args.timestep_start:self.args.timestep_end], self.y_val)
         val_dataloader = DataLoader(val_dataset, batch_size = self.args.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(val_dataset)} validation data instances')
@@ -89,11 +90,9 @@ class EEGDataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         if self.args.test_person_index != []:
-            filter = np.vectorize(lambda x : not (x in self.args.test_person_index))(self.person_test.flatten())
+            filter = np.vectorize(lambda x : x in self.args.test_person_index)(self.person_test.flatten())
             test_dataset = EEGDataset(self.X_test[filter], self.y_test[filter])
-        else:
-            test_dataset = EEGDataset(self.X_test, self.y_test)
-        if self.args.timestep_end != -1:
+        elif self.args.timestep_end != -1:
             test_dataset = EEGDataset(self.X_test[:, :, self.args.timestep_start:self.args.timestep_end], self.y_test)
         else:
             test_dataset = EEGDataset(self.X_test, self.y_test)

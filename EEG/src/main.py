@@ -24,7 +24,6 @@ def main():
     parser.add_argument('--timestep', type=int, default=-1) # takes a list of subject indecies to test on
     parser.add_argument('--timestep_start', type=int, default=-1) # takes a list of subject indecies to test on
     parser.add_argument('--timestep_end', type=int, default=-1) # takes a list of subject indecies to test on
-
     #model runtime related
     parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'ATCNet', 'EEGNet', 'EEGNet_mod'] ,help='model to use')
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
@@ -55,9 +54,8 @@ def main():
     checkpoint_callback = ModelCheckpoint(
         dirpath=args.ckpt_dir,
         save_top_k=1,
-        save_last=True,
         monitor='val_loss', # metric name 
-        mode='max',
+        mode='min',
         save_weights_only=True,
         filename='{epoch}', # this cannot contain slashes
         )
