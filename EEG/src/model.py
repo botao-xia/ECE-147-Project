@@ -12,6 +12,63 @@ from torchmetrics.functional import accuracy
 from utils import PositionalEncoding
 from ATCNet import ATCNet
 
+class EEGNet_Modified(nn.Module):
+    '''
+        hyperparameters s2:
+        self, n_temporal_filters=8, 
+        kernel_length=64, pool_size=8, 
+        depth_multiplier=4, in_channels=22, dropout=0.3
+    '''
+
+    def __init__(
+        self, in_samples=1000, n_temporal_filters=8, 
+        kernel_length=64, pool_size=8,
+        depth_multiplier=4, in_channels=22, dropout=0.3):
+
+        super().__init__()
+
+        self.input_shape = (in_channels, in_samples)
+        kernel_length2 = 16
+        Filter_Num_2 = depth_multiplier*n_temporal_filters
+
+        self.temporal_conv1 = nn.Conv2d(1, n_temporal_filters, (1,kernel_length), padding='same', bias=False)
+        self.batch_norm_1 = nn.BatchNorm2d(n_temporal_filters)
+        self.depth_wise_conv = nn.Conv2d(n_temporal_filters, Filter_Num_2, (in_channels, 1), bias=False, groups=n_temporal_filters)
+        self.batch_norm_2 = nn.BatchNorm2d(Filter_Num_2)
+        self.elu = nn.ELU()
+        self.average_pool1 = nn.AvgPool2d((1, pool_size), stride=(1, pool_size))
+        self.average_pool2 = nn.AvgPool2d((1, pool_size), stride=(1, pool_size))
+        self.dropout1 = nn.Dropout(p=dropout)
+        self.dropout2 = nn.Dropout(p=dropout)
+        self.spatial_conv1 = nn.Conv2d(Filter_Num_2, Filter_Num_2, (1, kernel_length2), padding='same', bias=False)
+        self.batch_norm_3 = nn.BatchNorm2d(Filter_Num_2)
+
+        #NOTE: remove this if used as part of ATCNet, keep this if used as EGGNet
+        self.temp_linear = nn.LazyLinear(4)
+
+    def forward(self, x):
+        # x should be (batch_size, 1, channels, time)
+        h = x
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        h = self.temporal_conv1(h)
+        h = self.batch_norm_1(h)
+        h = self.depth_wise_conv(h)
+        h = self.batch_norm_2(h)
+        h = self.elu(h)
+        h = self.average_pool1(h)
+        h = self.dropout1(h)
+        h = self.spatial_conv1(h)
+        h = self.batch_norm_3(h)
+        h = self.elu(h)
+        h = self.average_pool2(h)
+        h = self.dropout2(h)
+
+        #NOTE: remove this if used as part of ATCNet, keep this if used as EGGNet
+        h=h.view(h.shape[0], -1)
+        h=self.temp_linear(h)
+
+        return h #(64, 32, 1, 15)
+
 class ViTransformer(nn.Module):
     def __init__(self, input_shape=(22, 1000), nhead=8, num_encoder_layers=2, patch_width=1, patch_height=22, n_classes=4):
         super().__init__()
@@ -103,6 +160,8 @@ class LitModule(pl.LightningModule):
             self.model = ViTransformer()
         elif model_name == 'ATCNet':
             self.model = ATCNet()
+        elif model_name == 'EEGNet_Modified':
+            self.model = EEGNet_Modified()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5

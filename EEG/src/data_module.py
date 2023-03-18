@@ -11,6 +11,39 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+def data_prep(X,y,sub_sample,average,noise):
+    total_X = None
+    total_y = None
+    # Trimming the data (sample,22,1000) -> (sample,22,500)
+    X = X[:,:,0:500]
+    #print('Shape of X after trimming:',X.shape)
+
+    # Maxpooling the data (sample,22,1000) -> (sample,22,500/sub_sample)
+    X_max = np.max(X.reshape(X.shape[0], X.shape[1], -1, sub_sample), axis=3)
+    total_X = X_max
+    total_y = y
+    #print('Shape of X after maxpooling:',total_X.shape)
+
+    # Averaging + noise 
+    X_average = np.mean(X.reshape(X.shape[0], X.shape[1], -1, average),axis=3)
+    X_average = X_average + np.random.normal(0.0, 0.5, X_average.shape)
+    total_X = np.vstack((total_X, X_average))
+    total_y = np.hstack((total_y, y))
+    #print('Shape of X after averaging+noise and concatenating:',total_X.shape)
+    
+    # Subsampling
+    for i in range(sub_sample):
+        X_subsample = X[:, :, i::sub_sample] + \
+                            (np.random.normal(0.0, 0.5, X[:, :,i::sub_sample].shape) if noise else 0.0)
+            
+        total_X = np.vstack((total_X, X_subsample))
+        total_y = np.hstack((total_y, y))
+        
+    #print('Shape of X after subsampling and concatenating:',total_X.shape)
+    return total_X,total_y
+
+
+# X_train_valid_prep,y_train_valid_prep = data_prep(X_train_valid,y_train_valid,2,2,True)
 class EEGDataset(Dataset):
     def __init__(self, X, Y):
         if isinstance(X, np.ndarray):
@@ -33,6 +66,7 @@ class EEGDataModule(pl.LightningDataModule):
     def __init__(self, args, data_dir: str = "./"):
         super().__init__()
         self.args = args 
+        self.do_data_prep = args.do_data_prep
         
     def prepare_data(self):
         return super().prepare_data()
@@ -40,18 +74,30 @@ class EEGDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str]=''):
         #load datasets
         data_dir = self.args.data_dir
-        X_train_valid = np.load(data_dir + "X_train_valid.npy")
-        y_train_valid = np.load(data_dir + "y_train_valid.npy")
-        # Convert to 0-4 labeling and integer type
-        y_train_valid = (y_train_valid - np.min(y_train_valid)).astype('int')
-        self.X_train, self.X_val, self.y_train, self.y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.args.test_ratio, random_state=self.args.random_state)
-        self.X_test = np.load(data_dir + "X_test.npy")
-        self.y_test = np.load(data_dir + "y_test.npy")
-        # Convert to 0-4 labeling and integer type
-        self.y_test = (self.y_test - np.min(self.y_test)).astype('int')
         self.person_train_valid = np.load(data_dir + "person_train_valid.npy")
         self.person_test = np.load(data_dir + "person_test.npy")
 
+        X_train_valid = np.load(data_dir + "X_train_valid.npy")
+        y_train_valid = np.load(data_dir + "y_train_valid.npy")
+        X_test = np.load(data_dir + "X_test.npy")
+        y_test = np.load(data_dir + "y_test.npy")
+
+        # Convert to 0-4 labeling and integer type
+        y_train_valid = (y_train_valid - np.min(y_train_valid)).astype('int')
+        y_test = (y_test - np.min(y_test)).astype('int')
+
+        X_train, X_valid, y_train, y_valid = train_test_split(X_train_valid, y_train_valid, test_size=self.args.test_ratio, random_state=self.args.random_state)
+
+        if (self.do_data_prep):
+            X_train, y_train = data_prep(X_train, y_train, 2, 2, True)
+            X_valid, y_valid = data_prep(X_valid, y_valid, 2, 2, True)
+            X_test, y_test = data_prep(X_test, y_test, 2, 2, True)
+
+
+        self.X_train, self.X_val, self.y_train, self.y_val =  X_train, X_valid, y_train, y_valid
+        self.X_test, self.y_test = X_test, y_test
+        
+        
         logger.info(f'Training data shape: {self.X_train.shape}')
         logger.info(f'Training labels shape: {self.y_train.shape}')
 

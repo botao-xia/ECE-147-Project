@@ -16,15 +16,16 @@ def main():
     parser.add_argument('--ckpt_dir', type=str, default="./checkpoints")
     #dataloader related
     parser.add_argument('--test_ratio', type=float, default=0.2)
+    parser.add_argument('--do_data_prep', action='store_true')
     parser.add_argument('--random_state', type=int, default='42')
     parser.add_argument('--train_batch_size', type=int, default=16)
     parser.add_argument('--eval_batch_size', type=int, default=64)
     #model runtime related
-    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'ATCNet'] ,help='model to use')
+    parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'ATCNet', 'EEGNet_Modified'] ,help='model to use')
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
     parser.add_argument("--load_ckpt", default=None, type=str)
     parser.add_argument('--eval_only', action="store_true")
-    parser.add_argument('--train_epochs', type=int, default=500)
+    parser.add_argument('--train_epochs', type=int, default=200)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1,
         help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--gradient_clip_val", default=1.0, type=float, help="Max gradient norm.")
@@ -49,10 +50,6 @@ def main():
     checkpoint_callback = ModelCheckpoint(
         dirpath=args.ckpt_dir,
         save_top_k=1,
-        save_last=True,
-        monitor='val_loss', # metric name 
-        mode='max',
-        save_weights_only=True,
         filename='{epoch}', # this cannot contain slashes
         )
 
@@ -67,6 +64,7 @@ def main():
         gradient_clip_val=args.gradient_clip_val, 
         num_sanity_val_steps=10,
         val_check_interval=1.0, # use float to check every n epochs 
+        check_val_every_n_epoch=1,
         precision=32,
         auto_lr_find=True,
         callbacks = [lr_logger, checkpoint_callback]
