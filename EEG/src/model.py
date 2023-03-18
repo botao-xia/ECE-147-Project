@@ -105,6 +105,7 @@ class ViTransformer(nn.Module):
         h = self.MLP_head(h)
         return h
 
+
 class ShallowConvNet(nn.Module):
     def __init__(self, input_shape=(22, 1000), n_temporal_filters=40, n_spatial_filters=40, n_classes=4):
         super().__init__() # call __init__ method of superclass
@@ -130,6 +131,7 @@ class ShallowConvNet(nn.Module):
     # e.g.:
     # model = ShallowConvNet()
     # out = model(x)
+
     def forward(self, x):
         # x has shape (batch_size, input_shape[0], input_shape[1])
         # Let H0 = input_shape[0], H1 = input_shape[1]
@@ -151,6 +153,137 @@ class ShallowConvNet(nn.Module):
         h = self.dense(h) # (batch_size, self.n_dense_features) -> (batch_size, n_classes)
         return h
 
+
+class DeepConvNet(nn.Module):
+    def __init__(self, input_shape=(22, 1000), n_temporal_filters=20, n_spatial_filters=20, n_classes=4):
+        super().__init__() # call __init__ method of superclass
+        self.input_shape = input_shape # last two dimensions, (excluding batch size). Should be length 2.
+        self.n_temporal_filters = n_temporal_filters
+        self.n_spatial_filters = n_spatial_filters
+        self.n_classes = n_classes
+
+        self.temporal_convolution = nn.Conv2d(1, n_temporal_filters, (1, 25))
+        self.spatial_convolution = nn.Conv2d(n_temporal_filters, n_spatial_filters, (input_shape[0], 1))
+
+        self.maxpool = nn.MaxPool1d(kernel_size=3)
+
+        self.conv1 = nn.Conv1d(in_channels=n_temporal_filters, out_channels=25, kernel_size=10)
+        self.conv2 = nn.Conv1d(in_channels=25, out_channels=50, kernel_size=10)
+
+        self.bn1 = nn.BatchNorm1d(num_features=25)
+        self.bn2 = nn.BatchNorm1d(num_features=50)
+        self.bn3 = nn.BatchNorm1d(num_features=n_spatial_filters)
+        self.dropout = nn.Dropout(p=0.5)
+
+        self.dense = nn.LazyLinear(n_classes)
+        self.elu = nn.ELU()
+        return
+
+    def forward(self, x):
+        # x has shape (batch_size, input_shape[0], input_shape[1])
+        # Let H0 = input_shape[0], H1 = input_shape[1]
+        h = x
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) # view as 
+        h = self.temporal_convolution(h) # (batch_size, 1, H0, W0) -> (batch_size, n_temporal_filters, H0, W0 - 25 + 1)
+        h = self.elu(h)
+        h = self.spatial_convolution(h)
+        h = torch.squeeze(h, 2)
+
+        h = self.elu(h)
+        h = self.maxpool(h)
+        h = self.bn3(h)
+        h = self.dropout(h)
+
+        h = self.conv1(h)
+        h = self.elu(h)
+        h = self.maxpool(h)
+        h = self.bn1(h)
+        h = self.dropout(h)
+
+        h = self.conv2(h)
+        h = self.elu(h)
+        h = self.maxpool(h)
+        h = self.bn2(h)
+        h = self.dropout(h)
+
+        h = h.view(h.shape[0], -1) # flatten the non-batch dimensions
+        h = self.dense(h)
+        return h
+
+
+class RNN(nn.Module):
+    def __init__(self, input_shape=(22, 1000), hidden_size=64, num_layers=2, n_classes=4, **kwargs):
+        super(RNN, self).__init__()
+        input_size, _ = input_shape
+        self.hidden_size = hidden_size
+        self.num_layer = num_layers
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True, **kwargs)
+        self.fc = nn.Linear(hidden_size, n_classes)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
+        out, hn = self.rnn(x)  # (batch, seq_len, n_features)
+        out = self.fc(out[:, -1, :]) # obtain the last output of the model
+        return out
+
+
+class LSTM(nn.Module):
+    def __init__(self, input_shape=(22, 1000), hidden_size=32, num_layers=2, n_classes=4, **kwargs):
+        super(LSTM, self).__init__()
+        input_size, _ = input_shape
+        self.hidden_size = hidden_size
+        self.num_layer = num_layers
+        self.rnn = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True, **kwargs)
+        self.fc = nn.Linear(hidden_size*2, n_classes)
+
+    def forward(self, x):
+        x = x.permute(0, 2, 1) # x is in batch, n_features, seq_len
+        out, hn = self.rnn(x)  # (batch, seq_len, n_features)
+        out = self.fc(out[:, -1, :]) # obtain the last output of the model
+        return out
+
+
+class ConvLSTM(nn.Module):
+    def __init__(self, input_shape=(22, 1000), hidden_size=32, num_layers=2, n_classes=4, **kwargs):
+        super(ConvLSTM, self).__init__()
+        self.input_shape = input_shape
+        self.hidden_size = hidden_size
+        self.num_layer = num_layers
+
+        self.conv1 = nn.Conv1d(in_channels=22, out_channels=25, kernel_size=10)
+        self.conv2 = nn.Conv1d(in_channels=25, out_channels=30, kernel_size=15)
+
+        self.bn1 = nn.BatchNorm1d(num_features=25)
+        self.bn2 = nn.BatchNorm1d(num_features=30)
+
+        self.maxpool = nn.MaxPool1d(kernel_size=3)
+        self.dropout = nn.Dropout(p=0.5)
+        self.elu = nn.ELU()
+
+        self.lstm = nn.LSTM(input_size=30, hidden_size=hidden_size, num_layers=num_layers, 
+                                batch_first=True, bidirectional=True, **kwargs)
+        self.fc = nn.LazyLinear(n_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.elu(x)
+        x = self.maxpool(x)
+        x = self.bn1(x)
+        x = self.dropout(x)
+
+        x = self.conv2(x)
+        x = self.elu(x)
+        x = self.maxpool(x)
+        x = self.bn2(x)
+        x = self.dropout(x)
+
+        x = x.permute(0, 2, 1)
+        x, _ = self.lstm(x)
+        x = self.fc(x[:, -1, :])
+    
+        return x
+
+
 class LitModule(pl.LightningModule):
     def __init__(self, model_name):
         super().__init__()
@@ -162,6 +295,12 @@ class LitModule(pl.LightningModule):
             self.model = ATCNet()
         elif model_name == 'EEGNet_Modified':
             self.model = EEGNet_Modified()
+        elif model_name == 'LSTM':
+            self.model = LSTM()
+        elif model_name == 'RNN':
+            self.model = RNN()
+        elif model_name == 'ConvLSTM':
+            self.model = ConvLSTM()
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5
