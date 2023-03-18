@@ -14,9 +14,12 @@ python main.py \
         --random_state=${SEED} \
         --model_name=${MODEL_NAME} \
         --gpus="${GPU}" \
-        --train_epochs 10 \
+        --train_epochs 200 \
         --train_batch_size 64 \
         --eval_batch_size 64 \
         --accumulate_grad_batches 1 \
-        --train_person_index 0 1 2 3 4 5 \
-        --test_person_index 6 7 8 \
+        --timestep_start 400 \
+        --timestep_end 1000 \
+
+#         --train_person_index 0 1 2 3 4 5 \
+#         --test_person_index 6 7 8 \

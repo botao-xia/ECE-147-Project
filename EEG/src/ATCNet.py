@@ -111,8 +111,8 @@ class ATCNet(nn.Module):
 class Convolution_module(nn.Module):
     def __init__(
         self, input_shape=(22, 1000), n_temporal_filters=8, 
-        kernel_length=64, pool_size1=4, pool_size2=8, 
-        depth_multiplier=4, in_channels=22, dropout=0.35):
+        kernel_length=64, pool_size1=8, pool_size2=8, 
+        depth_multiplier=4, in_channels=22, dropout=0.3):
 
         '''
         Default hyperparameters s1:
@@ -182,7 +182,6 @@ class Convolution_module(nn.Module):
         #NOTE: remove this if used as part of ATCNet, keep this if used as EGGNet
         h=h.view(h.shape[0], -1)
         h=self.temp_linear(h)
-
         return h #(64, 32, 1, 15)
 
 class TCN(nn.Module):   

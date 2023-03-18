@@ -170,18 +170,18 @@ class EEGNet(nn.Module):
         return h
     
 class LitModule(pl.LightningModule):
-    def __init__(self, model_name):
+    def __init__(self, model_name, timestep_start, timestep_end):
         super().__init__()
         if model_name == 'ShallowConvNet':
-            self.model = ShallowConvNet()
+            self.model = ShallowConvNet(input_shape=(22, timestep_end-timestep_start))
         elif model_name == 'EEGNet':
-            self.model = EEGNet()
+            self.model = EEGNet(input_shape=(22, timestep_end-timestep_start))
         elif model_name == 'ViTransformer':
-            self.model = ViTransformer()
+            self.model = ViTransformer(input_shape=(22, timestep_end-timestep_start))
         elif model_name == 'ATCNet':
-            self.model = ATCNet()
+            self.model = ATCNet(input_shape=(22, timestep_end-timestep_start))
         elif model_name == 'EEGNet_mod':
-            self.model = Convolution_module()
+            self.model = Convolution_module(input_shape=(22, timestep_end-timestep_start))
         else:
             raise NotImplementedError
         self.learning_rate = 1e-5
