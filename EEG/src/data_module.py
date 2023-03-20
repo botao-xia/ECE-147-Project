@@ -105,17 +105,7 @@ class EEGDataModule(pl.LightningDataModule):
         # Convert to 0-4 labeling and integer type
         self.y_test = (self.y_test - np.min(self.y_test)).astype('int')
         self.person_train_valid = np.load(data_dir + "person_train_valid.npy")
-        self.person_test = np.load(data_dir + "person_test.npy")
-
-        # if (self.do_data_prep):
-        #     X_train, y_train = data_prep(X_train, y_train, 2, 2, True)
-        #     X_valid, y_valid = data_prep(X_valid, y_valid, 2, 2, True)
-        #     X_test, y_test = data_prep(X_test, y_test, 2, 2, True)
-
-
-        # self.X_train, self.X_val, self.y_train, self.y_val =  X_train, X_valid, y_train, y_valid
-        # self.X_test, self.y_test = X_test, y_test
-        
+        self.person_test = np.load(data_dir + "person_test.npy")      
         
         logger.info(f'Training data shape: {self.X_train.shape}')
         logger.info(f'Training labels shape: {self.y_train.shape}')
