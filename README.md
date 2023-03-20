@@ -1,6 +1,8 @@
 # ECE-147-Project
 
-UCLA ECE-147-Project
+To achieve > 70% test acc:
+Select EEGNet_Modified model and train for 200 epochs. The last checkpoint should reach a test acc of 72.9%.
+
 
 | model name     | input                   | epoch | train acc | valid acc | num params  |  test acc  |
 |----------------|-------------------------|-------|-----------|-----------|-------------|------------|
