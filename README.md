@@ -1,8 +1,6 @@
 # ECE-147-Project
 
-To achieve > 70% test acc:
-Select EEGNet_Modified model and train for 200 epochs. The last checkpoint should reach a test acc of 72.9%.
-
+### Performance Quicklook
 
 | model name     | input                   | epoch | train acc | valid acc | num params  |  test acc  |
 |----------------|-------------------------|-------|-----------|-----------|-------------|------------|
@@ -17,4 +15,15 @@ Select EEGNet_Modified model and train for 200 epochs. The last checkpoint shoul
 | EEGNet_Modified| raw                     | 200   | 0.95      | 0.72      | 17.7K       | 0.73   	  |
 | EEGNet_Modified| trim                    | 200   | 0.93      | 0.74      | 17.7K       | 0.74   	  |
 
+### How to replicate the result
 
+1. Create a conda virtual environment with requirements.txt
+2. Put EEG data in a folder called “EEG_data”, then move the folder into “./EEG” directory
+3. Inside “./EEG/src/main.py”, change the “wb_logger” to use your wandb account
+4. Inside “./EEG” directory, run 
+
+
+python ./src/main.py --data_dir ./EEG_data/ --model_name EEGNet_Modified
+
+
+5. After 200 epochs (this is set by default), the last checkpoint should reach an accuracy of 72.9%
