@@ -26,4 +26,4 @@
 python ./src/main.py --data_dir ./EEG_data/ --model_name EEGNet_Modified
 ```
 
-5. After 200 epochs (this is set by default), the last checkpoint should reach an accuracy of $72.9\%$
+5. After 200 epochs (this is set by default), the last checkpoint should reach an accuracy of about $72.9\%$
