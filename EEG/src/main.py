@@ -4,6 +4,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.seed import seed_everything
+from pytorch_lightning.utilities.model_summary import summarize
 
 from data_module import EEGDataModule
 from model import LitModule
@@ -34,7 +35,7 @@ def main():
     #seed everything
     seed_everything(args.random_state)
 
-    #wandb logger; change to your own account to use it
+    #TODO: wandb logger; change to your own account to use it
     wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='ajshawn723')
 
     #data loaders
@@ -44,12 +45,18 @@ def main():
 
     #model
     model = LitModule(args.model_name)
+    summary = summarize(model, max_depth=-1)
+    print(summary)
 
     #trainer
     lr_logger = LearningRateMonitor() 
     checkpoint_callback = ModelCheckpoint(
         dirpath=args.ckpt_dir,
         save_top_k=1,
+        save_last=True,
+        monitor='val_accuracy', # metric name 
+        mode='max',
+        save_weights_only=True,
         filename='{epoch}', # this cannot contain slashes
         )
 

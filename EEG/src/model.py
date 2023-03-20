@@ -6,8 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl 
 from einops import rearrange, reduce, repeat
-from einops.layers.torch import Rearrange, Reduce
 from torchmetrics.functional import accuracy
+from torchsummary import summary
 
 from utils import PositionalEncoding
 from ATCNet import ATCNet
@@ -97,9 +97,9 @@ class ViTransformer(nn.Module):
         h = torch.cat([cls_tokens, h], dim=1) #(batch_size x seq_len+1 x flattened_dim)
         #add positional encoding
         h += self.positions #(batch_size x seq_len+1 x flattened_dim)
-        h = h.view(h.shape[1], h.shape[0], self.flattened_dim) #(seq_len+1 x batch_size x flattened_dim)
+        h = h.permute(1, 0, 2) #(seq_len+1 x batch_size x flattened_dim)
         h = self.transformer_encoder(h) # (seq_len+1 x batch_size x flattened_dim)
-        h = h.view(h.shape[1], h.shape[0], self.flattened_dim) # (batch_size x seq_len+1 x flattened_dim)
+        h = h.permute(1, 0, 2) # (batch_size x seq_len+1 x flattened_dim)
         #h = reduce(h, 'b n e -> b e', reduction='mean')
         h = h[:,0,:]
         h = self.MLP_head(h)
@@ -164,7 +164,9 @@ class LitModule(pl.LightningModule):
             self.model = EEGNet_Modified()
         else:
             raise NotImplementedError
-        self.learning_rate = 1e-5
+
+        self.learning_rate = 1e-3
+        #print(summary(self.model.cuda(), input_size=(64, 1, 22, 1000)))
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop.
@@ -181,11 +183,11 @@ class LitModule(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         out = self.model(x) 
-        preds, val_loss, acc = self._get_preds_loss_accuracy(out, y)
+        preds, val_loss, val_accuracy = self._get_preds_loss_accuracy(out, y)
 
         #log for wandb
         self.log('val_loss', val_loss, on_step=True)
-        self.log('val_accuracy', acc, on_step=True)
+        self.log('val_accuracy', val_accuracy, on_step=True)
 
         return preds
 
@@ -200,7 +202,7 @@ class LitModule(pl.LightningModule):
         return preds
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def _get_preds_loss_accuracy(self, logits, labels):

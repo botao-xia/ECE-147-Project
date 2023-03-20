@@ -29,7 +29,7 @@ class ATCNet(nn.Module):
     """
     def __init__(
         self, n_classes = 4, in_chans = 22, in_samples = 1000, n_windows = 5, 
-        eegn_F1 = 16, eegn_D = 2, eegn_kernelSize = 64, eegn_poolSize = 7, eegn_dropout=0.3, 
+        eegn_F1 = 8, eegn_D = 4, eegn_kernelSize = 64, eegn_poolSize = 8, eegn_dropout=0.3, 
         tcn_depth = 2, tcn_kernelSize = 4, tcn_filters = 32, tcn_dropout = 0.3, 
         tcn_activation = 'elu', fuse = 'average', MSA_embed_dim = 8, MSA_num_heads = 2, MSA_dropout=0.5
     ):
@@ -78,11 +78,11 @@ class ATCNet(nn.Module):
 
     def forward(self, x):
         h = x
-        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1])
+        h = h.view(-1, 1, self.input_shape[0], self.input_shape[1]) #(64, 1, 22, 1000)
         #EEGNet block
         h = self.Convolution_module(h) #(64, 32, 1, 15)
         h = h[:,:,-1,:] #(64, 32, 15)
-        h = h.view(-1, h.shape[2], h.shape[1]) #(64, 15, 32)
+        h = h.permute(0,2,1) #(64, 15, 32)
 
         sliding_windows_concat = []
         for i in range(self.n_windows):
@@ -287,8 +287,8 @@ class TCN(nn.Module):
     def forward(self, x):
         
         h = x #(64, 13, 32)
-        x = x.reshape(-1, x.shape[2], x.shape[1]) #(64, 32, 13)
-        h = h.reshape(-1, h.shape[2], h.shape[1]) #(64, 32, 13)
+        x = x.permute(0, 2, 1) #(64, 32, 13)
+        h = h.permute(0, 2, 1) #(64, 32, 13)
         h = self.conv1_list[0](h)
         #h = self.casual_conv_list[0](h)
         h = h[:, :, :-self.pad_list[0]]
@@ -323,7 +323,7 @@ class TCN(nn.Module):
             h = h + out
             out = self.elu(h)
 
-        out = out.reshape(-1, out.shape[2], out.shape[1]) #(64, 13, 32)
+        out = out.permute(0, 2, 1) #(64, 13, 32)
 
         return out
 
