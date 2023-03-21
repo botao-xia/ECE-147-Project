@@ -20,7 +20,7 @@
 1. Create a conda virtual environment with requirements.txt
 2. Put EEG data in a folder called `EEG_data`, then move the folder into `./EEG` directory
 3. Inside `./EEG/src/main.py`, change the wb_logger to use your wandb account
-4. If GPU is not available, you can change the accelerator to "gpu" in line72 inside `./EEG/src/main.py`
+4. If GPU is available, you can change the accelerator to "gpu" in line72 inside `./EEG/src/main.py`
 5. Inside `./EEG/scr` directory, run
 
 ```bash
