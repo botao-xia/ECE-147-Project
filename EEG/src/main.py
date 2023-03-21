@@ -21,6 +21,11 @@ def main():
     parser.add_argument('--random_state', type=int, default='42')
     parser.add_argument('--train_batch_size', type=int, default=16)
     parser.add_argument('--eval_batch_size', type=int, default=64)
+    parser.add_argument('--train_person_index', nargs='+', type=int, default=[]) # takes a list of subject indecies to train on
+    parser.add_argument('--test_person_index', nargs='+', type=int, default=[]) # takes a list of subject indecies to test on
+    parser.add_argument('--timestep', type=int, default=-1) # takes a list of subject indecies to test on
+    parser.add_argument('--timestep_start', type=int, default=-1) # takes a list of subject indecies to test on
+    parser.add_argument('--timestep_end', type=int, default=-1) # takes a list of subject indecies to test on
     #model runtime related
     parser.add_argument("--model_name", required=True, choices=['ShallowConvNet', 'ViTransformer', 'ATCNet', 'EEGNet_Modified'] ,help='model to use')
     parser.add_argument("--gpus", default='0', help='-1 means train on all gpus')
@@ -36,7 +41,7 @@ def main():
     seed_everything(args.random_state)
 
     #TODO: wandb logger; change to your own account to use it
-    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='ajshawn723')
+    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='botao')
 
     #data loaders
     dataModule = EEGDataModule(args)
@@ -44,7 +49,8 @@ def main():
     train_dataloader = dataModule.train_dataloader()
 
     #model
-    model = LitModule(args.model_name)
+    trim = args.timestep_end - args.timestep_start
+    model = LitModule(args.model_name, in_samples=(trim if trim != 0 else 1000))
     summary = summarize(model, max_depth=-1)
     print(summary)
 
@@ -52,7 +58,7 @@ def main():
     lr_logger = LearningRateMonitor() 
     checkpoint_callback = ModelCheckpoint(
         dirpath=args.ckpt_dir,
-        save_top_k=1,
+        save_top_k=3,
         save_last=True,
         monitor='val_accuracy', # metric name 
         mode='max',
@@ -61,7 +67,7 @@ def main():
         )
 
     trainer = Trainer(
-        accelerator="gpu", 
+        accelerator="cpu", 
         devices=1,
         logger=wb_logger, 
         min_epochs=args.train_epochs,

@@ -91,7 +91,10 @@ class EEGDataModule(pl.LightningDataModule):
 
         # Convert to 0-4 labeling and integer type
         y_train_valid = (y_train_valid - np.min(y_train_valid)).astype('int')
-        X_train, X_val, y_train, y_val = train_test_split(X_train_valid, y_train_valid, test_size=self.test_size, random_state=self.random_state)
+
+        # train test split
+        indices = np.arange(len(y_train_valid))
+        X_train, X_val, y_train, y_val, self.train_indecies, self.valid_indecies = train_test_split(X_train_valid, y_train_valid, indices, test_size=self.args.test_ratio, random_state=self.args.random_state)
 
         # apply transformation to the loaded dataset
         if transform is not None:
@@ -106,6 +109,8 @@ class EEGDataModule(pl.LightningDataModule):
         # Convert to 0-4 labeling and integer type
         self.y_test = (self.y_test - np.min(self.y_test)).astype('int')
         self.person_train_valid = np.load(data_dir + "person_train_valid.npy")
+        self.person_train = self.person_train_valid[self.train_indecies]
+        self.person_valid = self.person_train_valid[self.valid_indecies]
         self.person_test = np.load(data_dir + "person_test.npy")      
         
         logger.info(f'Training data shape: {self.X_train.shape}')
@@ -115,8 +120,14 @@ class EEGDataModule(pl.LightningDataModule):
         #TODO: load data specific to one person
         # if self.args.person_index != -1:
         #     pass
+        if self.args.train_person_index != []:
+            filter = np.vectorize(lambda x : x in self.args.train_person_index)(self.person_train.flatten())
+            train_dataset = EEGDataset(self.X_train[filter], self.y_train[filter])
+        elif self.args.timestep_end != -1:
+            train_dataset = EEGDataset(self.X_train[:, :, self.args.timestep_start:self.args.timestep_end], self.y_train)
+        else:
+            train_dataset = EEGDataset(self.X_train, self.y_train)
 
-        train_dataset = EEGDataset(self.X_train, self.y_train)
         train_dataloader = DataLoader(train_dataset, batch_size = self.train_batch_size, shuffle=True) 
         
         logger.info(f'loaded {len(train_dataset)} train data instances')
@@ -124,7 +135,14 @@ class EEGDataModule(pl.LightningDataModule):
         return train_dataloader
 
     def val_dataloader(self):
-        val_dataset = EEGDataset(self.X_val, self.y_val)
+        if self.args.train_person_index != []:
+            filter = np.vectorize(lambda x : x in self.args.train_person_index)(self.person_valid.flatten())
+            val_dataset = EEGDataset(self.X_val[filter], self.y_val[filter])
+        elif self.args.timestep_end != -1:
+            val_dataset = EEGDataset(self.X_val[:, :, self.args.timestep_start:self.args.timestep_end], self.y_val)
+        else:
+            val_dataset = EEGDataset(self.X_val, self.y_val)
+        
         val_dataloader = DataLoader(val_dataset, batch_size = self.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(val_dataset)} train data instances')
@@ -132,7 +150,14 @@ class EEGDataModule(pl.LightningDataModule):
         return val_dataloader
 
     def test_dataloader(self):
-        test_dataset = EEGDataset(self.X_test, self.y_test)
+        if self.args.test_person_index != []:
+            filter = np.vectorize(lambda x : x in self.args.test_person_index)(self.person_test.flatten())
+            test_dataset = EEGDataset(self.X_test[filter], self.y_test[filter])
+        elif self.args.timestep_end != -1:
+            test_dataset = EEGDataset(self.X_test[:, :, self.args.timestep_start:self.args.timestep_end], self.y_test)
+        else:
+            test_dataset = EEGDataset(self.X_test, self.y_test)
+        
         test_dataloader = DataLoader(test_dataset, batch_size = self.eval_batch_size, shuffle=False) 
 
         logger.info(f'loaded {len(test_dataset)} train data instances')

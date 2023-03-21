@@ -19,11 +19,16 @@ class EEGNet_Modified(nn.Module):
         kernel_length=64, pool_size=8, 
         depth_multiplier=4, in_channels=22, dropout=0.3
     '''
+    ''' test acc 0.74041
+        self, in_samples=1000, n_temporal_filters=8, 
+        kernel_length=64, pool_size=8,
+        depth_multiplier=4, in_channels=22, dropout=0.4
+    '''
 
     def __init__(
         self, in_samples=1000, n_temporal_filters=8, 
         kernel_length=64, pool_size=8,
-        depth_multiplier=4, in_channels=22, dropout=0.3):
+        depth_multiplier=4, in_channels=22, dropout=0.4):
 
         super().__init__()
 
@@ -285,7 +290,7 @@ class ConvLSTM(nn.Module):
 
 
 class LitModule(pl.LightningModule):
-    def __init__(self, model_name):
+    def __init__(self, model_name, in_samples = 1000):
         super().__init__()
         if model_name == 'ShallowConvNet':
             self.model = ShallowConvNet()
@@ -294,7 +299,7 @@ class LitModule(pl.LightningModule):
         elif model_name == 'ATCNet':
             self.model = ATCNet()
         elif model_name == 'EEGNet_Modified':
-            self.model = EEGNet_Modified()
+            self.model = EEGNet_Modified(in_samples = in_samples)
         elif model_name == 'LSTM':
             self.model = LSTM()
         elif model_name == 'RNN':
