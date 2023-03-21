@@ -9,6 +9,8 @@ from pytorch_lightning.utilities.model_summary import summarize
 from data_module import EEGDataModule
 from model import LitModule
 
+WANDB_USERNAME = "botao"
+
 def main():
     parser = argparse.ArgumentParser()
     #IO related
@@ -41,7 +43,7 @@ def main():
     seed_everything(args.random_state)
 
     #TODO: wandb logger; change to your own account to use it
-    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity='botao')
+    wb_logger = WandbLogger(project='EEG', name=args.ckpt_name, entity=WANDB_USERNAME)
 
     #data loaders
     dataModule = EEGDataModule(args)
@@ -60,8 +62,8 @@ def main():
         dirpath=args.ckpt_dir,
         save_top_k=3,
         save_last=True,
-        monitor='val_accuracy', # metric name 
-        mode='max',
+        monitor='val_loss', # metric name 
+        mode='min',
         save_weights_only=True,
         filename='{epoch}', # this cannot contain slashes
         )

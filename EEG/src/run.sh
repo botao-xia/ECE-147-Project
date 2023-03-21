@@ -4,8 +4,8 @@ GPU=0
 SEED=42
 CKPT_NAME="Modified_EEGNet_trim"
 CKPT_DIR="./outputs/Modified_EEGNet_trim"
-DATA_DIR="./EEG_Dataset/"
 MODEL_NAME="EEGNet_Modified"
+DATA_DIR=$1
 
 python main.py \
         --data_dir=${DATA_DIR} \
