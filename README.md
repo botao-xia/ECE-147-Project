@@ -27,4 +27,4 @@
 ./run.sh PATH_TO_EEG_DATASET
 ```
 
-6. After 200 epochs (this is set by default), the last checkpoint should reach an accuracy of about $74\%$
+6. After 200 epochs (this is set by default), the last checkpoint should reach an test accuracy of about $74\%$
