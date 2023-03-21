@@ -72,6 +72,7 @@ class EEGDataModule(pl.LightningDataModule):
             self.train_batch_size = args["train_batch_size"]
             self.eval_batch_size = args["eval_batch_size"]
         else:
+            self.args = args
             self.test_size = self.args.test_ratio
             self.random_state = self.args.random_state
             self.data_dir = self.args.data_dir
